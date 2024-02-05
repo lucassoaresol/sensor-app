@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { MapContainer, Marker, TileLayer } from 'react-leaflet'
+import { Circle, MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import {
   Button,
   Card,
@@ -26,11 +26,12 @@ import {
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import 'dayjs/locale/pt-br'
+import { icon } from 'leaflet'
 dayjs.extend(localizedFormat)
 
 export const MapSimPage = () => {
   const { lat, long } = useParams()
-  const { setLoading } = useAppThemeContext()
+  const { setLoading, smDown } = useAppThemeContext()
   const [dumps, setDumps] = useState<iDump[]>([])
   const [dumpData, setDumpData] = useState<iDump>()
   const [nextDumps, setNextDumps] = useState<iDump[]>([])
@@ -170,8 +171,8 @@ export const MapSimPage = () => {
 
   return (
     <LayoutFullBasePage>
-      <Grid container spacing={1}>
-        <Grid item xs={10}>
+      {smDown ? (
+        <div className="ml-3 w-full">
           <MapContainer
             center={[Number(lat), Number(long)]}
             zoom={16}
@@ -186,31 +187,92 @@ export const MapSimPage = () => {
               <Marker key={el.id} position={[el.lat, el.lon]} />
             ))}
           </MapContainer>
+          <div className="mt-1 flex overflow-x-scroll gap-1">
+            {nextDumps.map((el) => (
+              <div key={el.id}>
+                <Card>
+                  <CardActionArea
+                    onClick={() => {
+                      handleDump(el)
+                      handleOpen()
+                    }}
+                  >
+                    <CardContent>
+                      <Typography
+                        gutterBottom
+                        fontWeight="bold"
+                        component="div"
+                      >
+                        {el.label}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {el.prc.toFixed(2)}% - {el.distance}m
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <Grid container spacing={1}>
+          <Grid item xs={10}>
+            <MapContainer
+              center={[Number(lat), Number(long)]}
+              zoom={16}
+              scrollWheelZoom={false}
+              style={{ width: '100%', height: '78vh' }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {dumps.map((el) => (
+                <Marker key={el.id} position={[el.lat, el.lon]} />
+              ))}
+              <Marker
+                position={[locationData.lat, locationData.lon]}
+                icon={icon({ iconUrl: '/locale.svg' })}
+              >
+                <Popup>Você está dentro 100 metros deste ponto</Popup>
+              </Marker>
+              <Circle
+                center={[locationData.lat, locationData.lon]}
+                pathOptions={{ fillColor: 'blue' }}
+                radius={100}
+              />
+            </MapContainer>
+          </Grid>
+          <Grid container item xs={2} spacing={1}>
+            {nextDumps.map((el) => (
+              <Grid item xs={12} key={el.id}>
+                <Card>
+                  <CardActionArea
+                    onClick={() => {
+                      handleDump(el)
+                      handleOpen()
+                    }}
+                  >
+                    <CardContent>
+                      <Typography
+                        gutterBottom
+                        fontWeight="bold"
+                        component="div"
+                      >
+                        {el.label}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {el.prc.toFixed(2)}% - {el.distance}m
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
         </Grid>
-        <Grid container item xs={2} spacing={1}>
-          {nextDumps.map((el) => (
-            <Grid item xs={12} key={el.id}>
-              <Card>
-                <CardActionArea
-                  onClick={() => {
-                    handleDump(el)
-                    handleOpen()
-                  }}
-                >
-                  <CardContent>
-                    <Typography gutterBottom fontWeight="bold" component="div">
-                      {el.label}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {el.prc.toFixed(2)}% - {el.distance}m
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Grid>
+      )}
       {dumpData && (
         <>
           {Number(dumpData?.distance) < 1 ? (

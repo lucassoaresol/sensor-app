@@ -1,5 +1,13 @@
-import { useEffect, useState } from 'react'
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Circle,
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  useMapEvents,
+} from 'react-leaflet'
+import { icon } from 'leaflet'
 import {
   LayoutFullBasePage,
   apiDump,
@@ -29,13 +37,16 @@ dayjs.extend(localizedFormat)
 
 const LocationMarker = ({
   handleLocation,
+  handleRadius,
 }: {
   handleLocation: (newLocation: iLocation) => void
+  handleRadius: (newRadius: number) => void
 }) => {
   const map = useMapEvents({
     locationfound(e) {
       map.flyTo(e.latlng, 16)
       handleLocation({ lat: e.latlng.lat, lon: e.latlng.lng })
+      handleRadius(e.accuracy)
     },
   })
 
@@ -47,11 +58,12 @@ const LocationMarker = ({
 }
 
 export const MapPage = () => {
-  const { setLoading } = useAppThemeContext()
+  const { setLoading, smDown } = useAppThemeContext()
   const [dumps, setDumps] = useState<iDump[]>([])
   const [dumpData, setDumpData] = useState<iDump>()
   const [nextDumps, setNextDumps] = useState<iDump[]>([])
   const [locationData, setLocationData] = useState<iLocation>()
+  const [radius, setRadius] = useState(200)
   const [routeData, setRouteData] = useState<iRoute>()
   const [reserveData, setReserveData] = useState<iRoute>()
   const [collectionData, setCollectionData] = useState<iRoute>()
@@ -63,6 +75,7 @@ export const MapPage = () => {
 
   const handleLocation = (newLocation: iLocation) =>
     setLocationData(newLocation)
+  const handleRadius = (newRadius: number) => setRadius(newRadius)
   const handleDump = (newDump: iDump) => setDumpData(newDump)
   const handleOpen = () => setOpen((old) => !old)
 
@@ -181,10 +194,32 @@ export const MapPage = () => {
       .finally(() => setLoading(false))
   }
 
+  const markerLocale = useMemo(() => {
+    if (locationData)
+      return (
+        <>
+          <Marker
+            position={[locationData.lat, locationData.lon]}
+            icon={icon({ iconUrl: '/locale.svg' })}
+          >
+            <Popup>
+              Você está dentro {radius.toFixed(0)} metros deste ponto
+            </Popup>
+          </Marker>
+          <Circle
+            center={[locationData.lat, locationData.lon]}
+            pathOptions={{ fillColor: 'blue' }}
+            radius={radius}
+          />
+        </>
+      )
+    return <></>
+  }, [locationData, radius])
+
   return (
     <LayoutFullBasePage>
-      <Grid container spacing={1}>
-        <Grid item xs={10}>
+      {smDown ? (
+        <div className="ml-3 w-full">
           <MapContainer
             center={[-3.7687699, -38.4806359]}
             zoom={12}
@@ -198,33 +233,93 @@ export const MapPage = () => {
             {dumps.map((el) => (
               <Marker key={el.id} position={[el.lat, el.lon]} />
             ))}
-            <LocationMarker handleLocation={handleLocation} />
+            <LocationMarker
+              handleLocation={handleLocation}
+              handleRadius={handleRadius}
+            />
+            {markerLocale}
           </MapContainer>
+          <div className="mt-1 flex overflow-x-scroll gap-1">
+            {nextDumps.map((el) => (
+              <div key={el.id}>
+                <Card>
+                  <CardActionArea
+                    onClick={() => {
+                      handleDump(el)
+                      handleOpen()
+                    }}
+                  >
+                    <CardContent>
+                      <Typography
+                        gutterBottom
+                        fontWeight="bold"
+                        component="div"
+                      >
+                        {el.label}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {el.prc.toFixed(2)}% - {el.distance}m
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <Grid container spacing={1}>
+          <Grid item xs={10}>
+            <MapContainer
+              center={[-3.7687699, -38.4806359]}
+              zoom={12}
+              scrollWheelZoom={false}
+              style={{ width: '100%', height: '78vh' }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {dumps.map((el) => (
+                <Marker key={el.id} position={[el.lat, el.lon]} />
+              ))}
+              <LocationMarker
+                handleLocation={handleLocation}
+                handleRadius={handleRadius}
+              />
+              {markerLocale}
+            </MapContainer>
+          </Grid>
+          <Grid container item xs={2} spacing={1}>
+            {nextDumps.map((el) => (
+              <Grid item xs={12} key={el.id}>
+                <Card>
+                  <CardActionArea
+                    onClick={() => {
+                      handleDump(el)
+                      handleOpen()
+                    }}
+                  >
+                    <CardContent>
+                      <Typography
+                        gutterBottom
+                        fontWeight="bold"
+                        component="div"
+                      >
+                        {el.label}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {el.prc.toFixed(2)}% - {el.distance}m
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
         </Grid>
-        <Grid container item xs={2} spacing={1}>
-          {nextDumps.map((el) => (
-            <Grid item xs={12} key={el.id}>
-              <Card>
-                <CardActionArea
-                  onClick={() => {
-                    handleDump(el)
-                    handleOpen()
-                  }}
-                >
-                  <CardContent>
-                    <Typography gutterBottom fontWeight="bold" component="div">
-                      {el.label}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {el.prc.toFixed(2)}% - {el.distance}m
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Grid>
+      )}
+
       {dumpData && (
         <>
           {Number(dumpData?.distance) < 1 ? (

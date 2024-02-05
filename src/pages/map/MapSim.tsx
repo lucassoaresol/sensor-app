@@ -186,6 +186,12 @@ export const MapSimPage = () => {
             {dumps.map((el) => (
               <Marker key={el.id} position={[el.lat, el.lon]} />
             ))}
+            <Marker
+              position={[locationData.lat, locationData.lon]}
+              icon={icon({ iconUrl: '/locale.svg' })}
+            >
+              <Popup>Você está dentro 100 metros deste ponto</Popup>
+            </Marker>
           </MapContainer>
           <div className="mt-1 flex overflow-x-scroll gap-1">
             {nextDumps.map((el) => (
